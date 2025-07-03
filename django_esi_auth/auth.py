@@ -28,43 +28,44 @@ class EveAuthenticationBackend(BaseBackend):
         user = None
         is_admin = False
 
-        if EveUser.objects.all().count() == 0:
-            is_admin = True
+        if "password" not in kwargs:
+            if EveUser.objects.all().count() == 0:
+                is_admin = True
 
-        if "token_response" in kwargs:
-            token_response = kwargs["token_response"]
+            if "token_response" in kwargs:
+                token_response = kwargs["token_response"]
 
-            if token_response:
-                if token_response["identity"]["character_owner_hash"]:
-                    owner = (
-                        hashlib.md5(
-                            f"{token_response['identity']['character_id']}.{token_response['identity']['character_owner_hash']}".encode()
+                if token_response:
+                    if token_response["identity"]["character_owner_hash"]:
+                        owner = (
+                            hashlib.md5(
+                                f"{token_response['identity']['character_id']}.{token_response['identity']['character_owner_hash']}".encode()
+                            )
+                            .hexdigest()
+                            .upper()
                         )
-                        .hexdigest()
-                        .upper()
-                    )
-                    try:
-                        user = EveUser.objects.get(username=owner)
-                    except EveUser.DoesNotExist:
-                        user = EveUser(
-                            username=owner,
-                            is_superuser=is_admin,
-                            is_staff=is_admin,
-                            character_id=token_response["identity"]["character_id"],
-                            character_owner_hash=token_response["identity"]["character_owner_hash"],
-                            character_name=token_response["identity"]["character_name"],
-                        )
-                        user.first_name = token_response["identity"]["character_name"].split(" ")[0]
-                        user.last_name = token_response["identity"]["character_name"].split(" ")[-1]
-                        user.save()
-
-                        if settings.DJANGO_ESI_AUTH_DEFAULT_GROUP:
-                            group = Group.objects.get(name=settings.DJANGO_ESI_AUTH_DEFAULT_GROUP)
-                            user.groups.add(group)
+                        try:
+                            user = EveUser.objects.get(username=owner)
+                        except EveUser.DoesNotExist:
+                            user = EveUser(
+                                username=owner,
+                                is_superuser=is_admin,
+                                is_staff=is_admin,
+                                character_id=token_response["identity"]["character_id"],
+                                character_owner_hash=token_response["identity"]["character_owner_hash"],
+                                character_name=token_response["identity"]["character_name"],
+                            )
+                            user.first_name = token_response["identity"]["character_name"].split(" ")[0]
+                            user.last_name = token_response["identity"]["character_name"].split(" ")[-1]
                             user.save()
 
-        if self.has_login_rights(user):
-            return user
+                            if settings.DJANGO_ESI_AUTH_DEFAULT_GROUP:
+                                group = Group.objects.get(name=settings.DJANGO_ESI_AUTH_DEFAULT_GROUP)
+                                user.groups.add(group)
+                                user.save()
+
+            if self.has_login_rights(user):
+                return user
 
         return None
 
