@@ -33,4 +33,4 @@ class EveUserAdmin(admin.ModelAdmin):
 
 @admin.register(Token)
 class TokenAdmin(admin.ModelAdmin):
-    list_display = ["character_id", "character_name", "character_owner", "scopes", "expires_at"]
+    list_display = ["character_id", "character_name", "character_owner_hash", "scopes", "expires_at"]
