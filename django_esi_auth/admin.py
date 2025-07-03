@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import EveEntity, LoginAccessRight, EveUser
-from django.shortcuts import render
+
+from .models import EveEntity, LoginAccessRight, EveUser, Token
 
 
 @admin.register(EveEntity)
@@ -19,4 +19,18 @@ class LoginAccessRightAdmin(admin.ModelAdmin):
 
 @admin.register(EveUser)
 class EveUserAdmin(admin.ModelAdmin):
-    list_display = ["username", "character_name", "character_id", "corporation_id", "alliance_id", "is_staff", "is_superuser", "is_active"]
+    list_display = [
+        "username",
+        "character_name",
+        "character_id",
+        "corporation_id",
+        "alliance_id",
+        "is_staff",
+        "is_superuser",
+        "is_active",
+    ]
+
+
+@admin.register(Token)
+class TokenAdmin(admin.ModelAdmin):
+    list_display = ["character_id", "character_name", "character_owner", "scopes", "expires_at"]

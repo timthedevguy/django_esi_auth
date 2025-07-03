@@ -1,7 +1,7 @@
 [project]
 name = "django-esi-auth"
 version = "0.1.0"
-description = "Eve Online login using django-esi"
+description = "Eve Online login for Django"
 authors = [
     {name = "Tim Davis",email = "binary.god@gmail.com"}
 ]
@@ -9,15 +9,35 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "django (>=5,<6)",
-    "django-esi (>=6.0.0,<7.0.0)",
-    "requests (>=2.32.3,<3.0.0)"
+    "django (>=4,<6)",
+    "requests (>=2.32.3,<3.0.0)",
+    "jwcrypto (>=1.5.6,<2.0.0)",
+    "pytz (>=2025.2,<2026.0)"
 ]
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+py_version = 311
+line_length = 120
+
+[tool.pylint.format]
+max-line-length = "120"
+
+[tool.pylint.main]
+ignore = ["third_party", "migrations", ".venv"]
 
 [tool.poetry]
 packages = [
     {include = "django_esi_auth"}
 ]
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^3.3.7"
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

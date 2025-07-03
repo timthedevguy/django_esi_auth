@@ -1,76 +1,65 @@
+import re
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
-from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
+from django.core.signing import BadSignature, SignatureExpired, loads
+from django.http import HttpRequest
+from django.middleware.csrf import CSRF_TOKEN_LENGTH
 from django.shortcuts import redirect, render
-from django.utils import timezone
-from django.utils.module_loading import import_string
-from esi.models import CallbackRedirect
-from esi.views import sso_redirect
+from django_esi_auth.exceptions import EveCallbackStateInvalidError, EveTokenRequestError, EveTokenValidationError
 
-from .choices import EVE_ENTITY_TYPE
-from .models import DynamicObject, LoginAccessRight
+from .models import Token, TokenManager
 
 
-def to_auth_redirect(request: HttpRequest) -> HttpResponse:
-    """Initiates the Eve Online Authentication flow.
+def from_auth_redirect(request: HttpRequest):
+    signed_state = request.GET.get("state") or ""
+    code = request.GET.get("code")
 
-    The ```next``` parameter is stored in session for use by the callback.
-
-    Args:
-        request (HttpRequest): Current request
-
-    Returns:
-        HttpResponse: Redirect to Eve Online login
-    """
-    if request.GET.get("next"):
-        request.session["next"] = request.GET.get("next")
-    return sso_redirect(request=request, return_to="eve_auth_callback")
-
-
-def from_auth_redirect(request: HttpRequest) -> HttpResponse:
-    """Completes the Eve Online Authentication flow.
-
-    The ```next``` parameter is retrieved from the session and is used
-    as redirect target after login.
-
-    Args:
-        request (HttpRequest): Current request
-
-    Raises:
-        Exception: CallbackRedirect.DoesNotExist
-
-    Returns:
-        HttpResponse: Redirect to the original ```next``` destination
-    """
-    next_url = request.session.pop("next", "/")
     try:
-        callback = CallbackRedirect.objects.get(session_key=request.session.session_key)
-    except CallbackRedirect.DoesNotExist as exc:
-        raise Exception("Something is very wrong") from exc
+        state = loads(signed_state, salt=settings.SECRET_KEY, max_age=300)
+    except SignatureExpired:
+        raise EveCallbackStateInvalidError("State signature expired.")
+    except BadSignature:
+        raise EveCallbackStateInvalidError("State has bad signature.")
 
-    token = { 
-        "access_token": callback.token.access_token,
-        "character_id": callback.token.character_id,
-        "character_name": callback.token.character_name,
-        "character_owner_hash": callback.token.character_owner_hash
-        }
+    csrf_token = state["token"] or ""
+    next_url = state["next"] or "/"
 
-    user = authenticate(request=request, token=DynamicObject(token))
+    checks = (
+        re.search("[a-zA-Z0-9]", csrf_token),
+        len(csrf_token) == CSRF_TOKEN_LENGTH,
+    )
 
-    # Cleanup the CallbackRedirect and Token objects created
-    # by the signin as we don't need them for just authentication.
-    #callback.token.delete()
-    
+    # Check all conditions
+    if not all(checks):
+        raise EveCallbackStateInvalidError("State failed validation checks")
+
+    token_response = TokenManager.request_access_token_from_auth_code(code)
+
+    if token_response is None:
+        raise EveTokenRequestError("Error getting token.")
+
+    if "aud" not in token_response["claims"]:
+        raise EveTokenValidationError("Token missing 'aud' key.")
+
+    if (
+        token_response["claims"]["aud"][0] != settings.ESI_SSO_CLIENT_ID
+        or token_response["claims"]["aud"][1] != "EVE Online"
+    ):
+        raise EveTokenValidationError("Invalid token audience.")
+
+    user = authenticate(request=request, token_response=token_response)
 
     if user:
         login(request, user)
-        request.session['character_id'] = token['character_id']
-        callback.token.delete()
+
+        if "scp" in token_response["claims"]:
+            if token_response["claims"]["scp"]:
+                Token.objects.save_sso_response(token_response)
+
         return redirect(next_url)
 
-    messages.error(request, f"{token['character_name']} is not authorized to login.")
-    callback.token.delete()
-    #callback.delete()
+    messages.error(request, f"{token_response['identity']['character_name']} is not authorized to login.")
+
     return render(request, "registration/login.html")

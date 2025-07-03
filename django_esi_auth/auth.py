@@ -1,16 +1,15 @@
 import hashlib
 import json
+from datetime import timedelta
 
 import requests
 from django.conf import settings
 from django.contrib.auth.backends import BaseBackend
-from django.contrib.auth.models import AbstractBaseUser, Group, User
+from django.contrib.auth.models import AbstractBaseUser, Group
 from django.http import HttpRequest
-from django.utils.module_loading import import_string
-from esi.models import Token
-from datetime import timedelta
-from .models import LoginAccessRight, EveUser
 from django.utils import timezone
+
+from .models import LoginAccessRight, EveUser
 
 
 class EveAuthenticationBackend(BaseBackend):
@@ -32,14 +31,14 @@ class EveAuthenticationBackend(BaseBackend):
         if EveUser.objects.all().count() == 0:
             is_admin = True
 
-        if "token" in kwargs:
-            token = kwargs["token"]
+        if "token_response" in kwargs:
+            token_response = kwargs["token_response"]
 
-            if token:
-                if token.character_owner_hash:
+            if token_response:
+                if token_response["identity"]["character_owner_hash"]:
                     owner = (
                         hashlib.md5(
-                            f"{token.character_id}.{token.character_owner_hash}".encode()
+                            f"{token_response['identity']['character_id']}.{token_response['identity']['character_owner_hash']}".encode()
                         )
                         .hexdigest()
                         .upper()
@@ -47,24 +46,22 @@ class EveAuthenticationBackend(BaseBackend):
                     try:
                         user = EveUser.objects.get(username=owner)
                     except EveUser.DoesNotExist:
-                            user = EveUser(
-                                username=owner,
-                                is_superuser=is_admin,
-                                is_staff=is_admin,
-                                character_id=token.character_id,
-                                character_owner_hash=token.character_owner_hash,
-                                character_name=token.character_name
-                            )
-                            user.first_name = token.character_name.split(" ")[0]
-                            user.last_name = token.character_name.split(" ")[-1]
+                        user = EveUser(
+                            username=owner,
+                            is_superuser=is_admin,
+                            is_staff=is_admin,
+                            character_id=token_response["identity"]["character_id"],
+                            character_owner_hash=token_response["identity"]["character_owner_hash"],
+                            character_name=token_response["identity"]["character_name"],
+                        )
+                        user.first_name = token_response["identity"]["character_name"].split(" ")[0]
+                        user.last_name = token_response["identity"]["character_name"].split(" ")[-1]
+                        user.save()
+
+                        if settings.DJANGO_ESI_AUTH_DEFAULT_GROUP:
+                            group = Group.objects.get(name=settings.DJANGO_ESI_AUTH_DEFAULT_GROUP)
+                            user.groups.add(group)
                             user.save()
-                            
-                            if settings.DJANGO_ESI_AUTH_DEFAULT_GROUP:
-                                group = Group.objects.get(
-                                    name=settings.DJANGO_ESI_AUTH_DEFAULT_GROUP
-                                )
-                                user.groups.add(group)
-                                user.save()
 
         if self.has_login_rights(user):
             return user
@@ -76,7 +73,6 @@ class EveAuthenticationBackend(BaseBackend):
             return EveUser.objects.get(pk=user_id)
         except EveUser.DoesNotExist:
             return None
-
 
     def has_login_rights(self, user: EveUser) -> bool:
 
@@ -90,22 +86,24 @@ class EveAuthenticationBackend(BaseBackend):
             user.last_access_check = timezone.now()
             user.save()
 
-        if (LoginAccessRight.objects.filter(
-            entity__eve_entity_id=user.character_id,
-            entity__eve_entity_type="Character",
-        ).exists()
-        or LoginAccessRight.objects.filter(
-            entity__eve_entity_id=user.alliance_id,
-            entity__eve_entity_type="Alliance",
-        ).exists()
-        or LoginAccessRight.objects.filter(
-            entity__eve_entity_id=user.corporation_id,
-            entity__eve_entity_type="Corporation",
-        ).exists()):
+        if (
+            LoginAccessRight.objects.filter(
+                entity__eve_entity_id=user.character_id,
+                entity__eve_entity_type="Character",
+            ).exists()
+            or LoginAccessRight.objects.filter(
+                entity__eve_entity_id=user.alliance_id,
+                entity__eve_entity_type="Alliance",
+            ).exists()
+            or LoginAccessRight.objects.filter(
+                entity__eve_entity_id=user.corporation_id,
+                entity__eve_entity_type="Corporation",
+            ).exists()
+        ):
             return True
-        
+
         return False
-    
+
     def get_public_character_data(self, character_id):
         response = requests.get(
             f"https://esi.evetech.net/latest/characters/{character_id}/?datasource=tranquility",
@@ -114,5 +112,5 @@ class EveAuthenticationBackend(BaseBackend):
 
         if response:
             return json.loads(response.text)
-        
+
         return None
