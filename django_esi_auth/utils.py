@@ -22,9 +22,8 @@ def construct_eve_login_url(request: HttpRequest, scopes: str = None):
     # Grab a CSRF Token and use it for state validation
     state = {"token": get_token(request)}
 
-    if request.GET.get("next", None):
-        state["next"] = request.GET.get("next")
-    test = reverse("auth:callback")
+    state["next"] = request.GET.get("next", "/")
+
     signed_state = dumps(state, salt=settings.SECRET_KEY)
     redirect_url = f"{request.scheme}://{settings.SITE_DOMAIN}{reverse('auth:callback')}"
 
