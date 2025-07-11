@@ -7,8 +7,8 @@ from django.core.signing import BadSignature, SignatureExpired, loads
 from django.http import HttpRequest
 from django.middleware.csrf import CSRF_TOKEN_LENGTH
 from django.shortcuts import redirect, render
-from django_esi_auth.exceptions import EveCallbackStateInvalidError, EveTokenRequestError, EveTokenValidationError
 
+from django_esi_auth.exceptions import EveCallbackStateInvalidError, EveTokenRequestError, EveTokenValidationError
 from .models import Token, TokenManager
 
 
@@ -25,6 +25,10 @@ def from_auth_redirect(request: HttpRequest):
 
     csrf_token = state["token"] or ""
     next_url = state["next"] or "/"
+    save_user = True
+
+    if "save_user" in state:
+        save_user = state["save_user"]
 
     checks = (
         re.search("[a-zA-Z0-9]", csrf_token),
@@ -49,17 +53,21 @@ def from_auth_redirect(request: HttpRequest):
     ):
         raise EveTokenValidationError("Invalid token audience.")
 
-    user = authenticate(request=request, token_response=token_response)
+    if save_user:
+        user = authenticate(request=request, token_response=token_response)
 
-    if user:
-        login(request, user)
+        if user:
+            login(request, user)
 
-        if "scp" in token_response["claims"]:
-            if token_response["claims"]["scp"]:
-                Token.objects.save_sso_response(token_response)
+            if "scp" in token_response["claims"]:
+                if token_response["claims"]["scp"]:
+                    Token.objects.save_sso_response(token_response)
 
-        return redirect(next_url)
+            return redirect(next_url)
 
-    messages.error(request, f"{token_response['identity']['character_name']} is not authorized to login.")
+        messages.error(request, f"{token_response['identity']['character_name']} is not authorized to login.")
 
-    return render(request, "registration/login.html")
+        return render(request, "registration/login.html")
+
+    Token.objects.save_sso_response(token_response)
+    return redirect(next_url)

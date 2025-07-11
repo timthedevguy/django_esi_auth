@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
 
 from .models import EveEntity, LoginAccessRight, EveUser, Token
 
@@ -18,7 +19,7 @@ class LoginAccessRightAdmin(admin.ModelAdmin):
 
 
 @admin.register(EveUser)
-class EveUserAdmin(admin.ModelAdmin):
+class EveUserAdmin(UserAdmin):
     list_display = [
         "username",
         "character_name",
@@ -29,6 +30,12 @@ class EveUserAdmin(admin.ModelAdmin):
         "is_superuser",
         "is_active",
     ]
+    fieldsets = UserAdmin.fieldsets + (
+        (
+            "Eve Online Identity",
+            {"fields": ["character_id", "character_name", "character_owner_hash", "corporation_id", "alliance_id"]},
+        ),
+    )
 
 
 @admin.register(Token)
