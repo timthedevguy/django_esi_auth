@@ -7,7 +7,7 @@ from typing import Any, List
 import requests
 from requests.structures import CaseInsensitiveDict
 
-from .exception import ESIRequestError, ESIResponseDecodeError
+from .exceptions import ESIRequestError, ESIResponseDecodeError
 from .models import Token
 
 
