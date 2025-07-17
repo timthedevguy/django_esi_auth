@@ -193,9 +193,14 @@ class ESIClient:
         else:
             result = ESIResponse(headers=response.headers)
 
-        try:
-            result.data = response.json()
-        except json.decoder.JSONDecodeError as e:
-            raise ESIResponseDecodeError(f"Failed to decode response from ESI.\n{response.text}\n\n{e}")
+        response.raise_for_status()
+
+        if 200 <= response.status_code <= 299:
+            try:
+                result.data = response.json()
+            except json.decoder.JSONDecodeError as e:
+                raise ESIResponseDecodeError(f"Failed to decode response from ESI.\n{response.text}\n\n{e}")
+        elif response.status_code == 304:
+            result.data = []
 
         return result
