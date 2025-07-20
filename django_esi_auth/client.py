@@ -175,14 +175,22 @@ class ESIClient:
         while retries < 6:
             try:
                 response = session.send(request.prepare(), timeout=(6, 10))
-                break
+
+                response.raise_for_status()
+
+                if 200 <= response.status_code <= 299 or response.status_code == 304:
+                    break
+
+                sleep(60)
+                retries += 1
             except requests.exceptions.Timeout:
-                sleep(10)
+                sleep(60)
+                retries += 1
+            except requests.exceptions.HTTPError:
+                sleep(60)
                 retries += 1
         else:
             raise ESIRequestError(f"Max retries exceeded for {request.url}")
-
-        response.raise_for_status()
 
         if "page" in request.params:
             if request.params["page"] < int(response.headers.get("x-pages", 1)):
@@ -193,14 +201,13 @@ class ESIClient:
         else:
             result = ESIResponse(headers=response.headers)
 
-        response.raise_for_status()
-
-        if 200 <= response.status_code <= 299:
-            try:
-                result.data = response.json()
-            except json.decoder.JSONDecodeError as e:
-                raise ESIResponseDecodeError(f"Failed to decode response from ESI.\n{response.text}\n\n{e}")
-        elif response.status_code == 304:
+        if response.status_code == 304:
             result.data = []
+            return result
+
+        try:
+            result.data = response.json()
+        except json.decoder.JSONDecodeError as e:
+            raise ESIResponseDecodeError(f"Failed to decode response from ESI.\n{response.text}\n\n{e}")
 
         return result
