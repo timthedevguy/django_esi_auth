@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from time import sleep
-from typing import Any, List
+from typing import Any, List, Union
 
 import requests
 from requests.structures import CaseInsensitiveDict
@@ -64,7 +64,7 @@ class ESIResponse:
 
 class ESIClient:
 
-    def __init__(self, token: Token):
+    def __init__(self, token: Union[Token | None]):
         self.headers = {
             "X-User-Agent": "Eve Broker v1 (fecal.matters@binarymethod.com)",
             "Accept": "application/json",
