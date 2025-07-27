@@ -13,6 +13,7 @@ from jwcrypto.jwk import JWKSet
 from jwcrypto.jwt import JWT
 
 from . import choices
+from . import signals
 
 
 class EveUser(AbstractUser):
@@ -70,6 +71,7 @@ class TokenManager(models.Manager):
             token = Token(
                 scopes=scopes, character_id=character_id, character_name=character_name, character_owner_hash=owner_hash
             )
+            signals.token_created.send(sender=self.__class__, token=token)
 
         token.access_token_backup = token_response["access_token"]
         token.refresh_token = token_response["refresh_token"]
