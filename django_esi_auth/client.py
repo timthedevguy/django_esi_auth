@@ -128,6 +128,17 @@ class ESIClient:
     def get_names(self, ids: List[int], etag=None, **kwargs) -> ESIResponse:
         return self._get_response("POST", "/v3/universe/names/", data=ids, success_code=200, public=True, no_page=True)
 
+    def get_public_character_data(self, character_id: int, etag=None, **kwargs) -> ESIResponse:
+        return self._get_response(
+            "GET",
+            "characters/{character_id}/",
+            character_id=character_id,
+            etag=etag,
+            success_code=200,
+            no_page=True,
+            public=True,
+        )
+
     def get_page(self, request: requests.Request) -> ESIResponse:
         return self._send_request(request)
 
