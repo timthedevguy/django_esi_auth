@@ -1,6 +1,6 @@
 [project]
 name = "django-esi-auth"
-version = "0.8.0"
+version = "0.9.0"
 description = "Eve Online login for Django"
 authors = [
     {name = "Tim Davis",email = "binary.god@gmail.com"}

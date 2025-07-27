@@ -64,7 +64,12 @@ class ESIResponse:
 
 class ESIClient:
 
-    def __init__(self, token: Union[Token | None]):
+    def __init__(self, token: Union[Token | None] = None):
+        """
+        Creates a new ESI Client class.  If no token is provided then only public endpoints will function.
+        Args:
+            token: Token to use for authenticated endpoints
+        """
         self.headers = {
             "X-User-Agent": "Eve Broker v1 (fecal.matters@binarymethod.com)",
             "Accept": "application/json",
