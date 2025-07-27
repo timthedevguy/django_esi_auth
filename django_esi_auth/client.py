@@ -136,7 +136,7 @@ class ESIClient:
     def get_public_character_data(self, character_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
             "GET",
-            "characters/{character_id}/",
+            "/characters/{character_id}/",
             character_id=character_id,
             etag=etag,
             success_code=200,
