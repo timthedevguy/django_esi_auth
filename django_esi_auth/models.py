@@ -1,7 +1,8 @@
 import base64
 import datetime
 import json
-from typing import Dict, Any, Union
+from importlib import import_module
+from typing import Dict, Any, Union, List
 
 import pytz
 import requests
@@ -12,8 +13,8 @@ from django.utils import timezone
 from jwcrypto.jwk import JWKSet
 from jwcrypto.jwt import JWT
 
-from . import choices
 from . import signals
+from .choices import EveEntityTypeEnum
 
 
 class EveUser(AbstractUser):
@@ -28,10 +29,78 @@ class EveUser(AbstractUser):
         return str(self.character_name)
 
 
+class EveEntityManager(models.Manager):
+
+    def get_unknown_searchable_ids(self) -> List[int]:
+        return list(
+            self.filter(eve_entity_name="Unknown")
+            .exclude(eve_entity_type=EveEntityTypeEnum.STRUCTURE)
+            .values_list("eve_entity_id", flat=True)
+        )
+
+    def get_uknown_structure_ids(self) -> List[int]:
+        return list(
+            self.filter(eve_entity_name="Unknown", eve_entity_type=EveEntityTypeEnum.STRUCTURE).values_list(
+                "eve_entity_id", flat=True
+            )
+        )
+
+    def update_entities_from_esi(self, esi_data) -> List["EveEntity"]:
+        entities_by_id = {e["id"]: e for e in esi_data}
+        instances_to_update = []
+
+        for entity in self.filter(eve_entity_id__in=entities_by_id.keys()):
+            entity.eve_entity_name = entities_by_id[entity.eve_entity_id]["name"]
+            entity.eve_entity_type = entities_by_id[entity.eve_entity_id]["category"]
+            instances_to_update.append(entity)
+
+        self.bulk_update(instances_to_update, ["eve_entity_name", "eve_entity_type"])
+        return instances_to_update
+
+    def update_entity_name(self, id: int, name: str) -> "EveEntity":
+        try:
+            entity = self.get(eve_entity_id=id)
+            entity.eve_entity_name = name
+            entity.save()
+        except self.model.DoesNotExist:
+            entity = None
+
+        return entity
+
+    def update_unknowns(self, tokens: List["Token"]) -> List["EveEntity"]:
+        results = []
+        unknown_searchable_ids = self.get_unknown_searchable_ids()
+        if unknown_searchable_ids:
+            public_client = getattr(import_module("django_esi_auth.client"), "ESIClient")()
+            response = public_client.get_names(unknown_searchable_ids)
+            results.extend(self.update_entities_from_esi(response.data))
+
+        if tokens:
+            for token in tokens:
+                structure_ids = self.get_uknown_structure_ids()
+                if structure_ids:
+                    client = getattr(import_module("django_esi_auth.client"), "ESIClient")(token)
+                    for structure_id in structure_ids:
+                        try:
+                            response = client.get_structure(structure_id=structure_id)
+                            if response.data:
+                                results.append(self.update_entity_name(structure_id, response.data[0]["name"]))
+                        except:
+                            continue
+
+        return results
+
+
 class EveEntity(models.Model):
     eve_entity_id = models.IntegerField()
-    eve_entity_type = models.CharField(null=False, blank=False, choices=choices.EVE_ENTITY_TYPE)
-    eve_entity_name = models.CharField(null=False, blank=False)
+    eve_entity_type = models.CharField(
+        null=False,
+        blank=False,
+        choices=EveEntityTypeEnum.choices,
+    )
+    eve_entity_name = models.CharField(null=False, blank=False, default="Unknown")
+
+    objects = EveEntityManager()
 
     def __str__(self):
         return str(self.eve_entity_name)

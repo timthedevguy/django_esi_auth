@@ -92,6 +92,16 @@ class ESIClient:
             etag=etag,
         )
 
+    def get_corporation_contract_items(self, corporation_id: int, contract_id: int, etag=None, **kwargs) -> ESIResponse:
+        return self._get_response(
+            "GET",
+            "/corporations/{corporation_id}/contracts/{contract_id}/items",
+            corporation_id=corporation_id,
+            contract_id=contract_id,
+            success_code=200,
+            etag=etag,
+        )
+
     def get_character_contract_items(self, character_id: int, contract_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
             "GET",
