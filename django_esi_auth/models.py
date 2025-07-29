@@ -35,6 +35,7 @@ class EveEntityManager(models.Manager):
         return list(
             self.filter(eve_entity_name="Unknown")
             .exclude(eve_entity_type=EveEntityTypeEnum.STRUCTURE)
+            .exclude(eve_entity_id=0)
             .values_list("eve_entity_id", flat=True)
         )
 
