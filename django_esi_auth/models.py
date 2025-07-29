@@ -81,12 +81,9 @@ class EveEntityManager(models.Manager):
                 if structure_ids:
                     client = getattr(import_module("django_esi_auth.client"), "ESIClient")(token)
                     for structure_id in structure_ids:
-                        try:
-                            response = client.get_structure(structure_id=structure_id)
-                            if response.data:
-                                results.append(self.update_entity_name(structure_id, response.data[0]["name"]))
-                        except:
-                            continue
+                        response = client.get_structure(structure_id=structure_id)
+                        if response.data:
+                            results.append(self.update_entity_name(structure_id, response.data[0]["name"]))
 
         return results
 
