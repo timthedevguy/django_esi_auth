@@ -9,6 +9,7 @@ from django.contrib.auth.models import AbstractBaseUser, Group
 from django.http import HttpRequest
 from django.utils import timezone
 
+from .choices import EveEntityTypeEnum
 from .models import LoginAccessRight, EveUser
 
 
@@ -90,15 +91,15 @@ class EveAuthenticationBackend(BaseBackend):
         if (
             LoginAccessRight.objects.filter(
                 entity__eve_entity_id=user.character_id,
-                entity__eve_entity_type="Character",
+                entity__eve_entity_type=EveEntityTypeEnum.CHARACTER,
             ).exists()
             or LoginAccessRight.objects.filter(
                 entity__eve_entity_id=user.alliance_id,
-                entity__eve_entity_type="Alliance",
+                entity__eve_entity_type=EveEntityTypeEnum.ALLIANCE,
             ).exists()
             or LoginAccessRight.objects.filter(
                 entity__eve_entity_id=user.corporation_id,
-                entity__eve_entity_type="Corporation",
+                entity__eve_entity_type=EveEntityTypeEnum.CORPORATION,
             ).exists()
         ):
             return True
