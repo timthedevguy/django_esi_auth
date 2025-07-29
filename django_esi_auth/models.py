@@ -92,7 +92,7 @@ class EveEntityManager(models.Manager):
 
 
 class EveEntity(models.Model):
-    eve_entity_id = models.IntegerField()
+    eve_entity_id = models.BigIntegerField()
     eve_entity_type = models.CharField(
         null=False,
         blank=False,
