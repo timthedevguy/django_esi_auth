@@ -41,9 +41,9 @@ class EveEntityManager(models.Manager):
 
     def get_uknown_structure_ids(self) -> List[int]:
         return list(
-            self.filter(eve_entity_name="Unknown", eve_entity_type=EveEntityTypeEnum.STRUCTURE).values_list(
-                "eve_entity_id", flat=True
-            )
+            self.filter(eve_entity_name="Unknown", eve_entity_type=EveEntityTypeEnum.STRUCTURE)
+            .exclude(eve_entity_id=0)
+            .values_list("eve_entity_id", flat=True)
         )
 
     def update_entities_from_esi(self, esi_data) -> List["EveEntity"]:
