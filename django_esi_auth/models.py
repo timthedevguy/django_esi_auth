@@ -76,15 +76,18 @@ class EveEntityManager(models.Manager):
             response = public_client.get_names(unknown_searchable_ids)
             results.extend(self.update_entities_from_esi(response.data))
 
+        found = []
         if tokens:
             for token in tokens:
                 structure_ids = self.get_uknown_structure_ids()
                 if structure_ids:
                     client = getattr(import_module("django_esi_auth.client"), "ESIClient")(token)
                     for structure_id in structure_ids:
-                        response = client.get_structure(structure_id=structure_id)
-                        if response.data:
-                            results.append(self.update_entity_name(structure_id, response.data["name"]))
+                        if structure_id not in found:
+                            response = client.get_structure(structure_id=structure_id)
+                            if response.data:
+                                results.append(self.update_entity_name(structure_id, response.data["name"]))
+                                found.append(structure_id)
 
         return results
 
