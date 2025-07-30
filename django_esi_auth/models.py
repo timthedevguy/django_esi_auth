@@ -84,7 +84,7 @@ class EveEntityManager(models.Manager):
                     for structure_id in structure_ids:
                         response = client.get_structure(structure_id=structure_id)
                         if response.data:
-                            results.append(self.update_entity_name(structure_id, response.data[0]["name"]))
+                            results.append(self.update_entity_name(structure_id, response.data["name"]))
 
         return results
 
