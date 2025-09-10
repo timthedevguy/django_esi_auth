@@ -83,8 +83,8 @@ class EveAuthenticationBackend(BaseBackend):
 
         if user.last_access_check is None or user.last_access_check < timezone.now() - timedelta(days=1):
             public_data = self.get_public_character_data(user.character_id)
-            user.corporation_id = public_data["corporation_id"]
-            user.alliance_id = public_data["alliance_id"]
+            user.corporation_id = public_data.get("corporation_id", None)
+            user.alliance_id = public_data.get("alliance_id", None)
             user.last_access_check = timezone.now()
             user.save()
 
