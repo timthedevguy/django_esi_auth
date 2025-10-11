@@ -239,7 +239,7 @@ class ESIClient:
         if "page" in request.params:
             if request.params["page"] < int(response.headers.get("x-pages", 1)):
                 request.params["page"] += 1
-                result = ESIResponse(headers=response.headers, next_page=request)
+                result = ESIResponse(headers=response.headers, next_page=request, page=request.params["page"])
             else:
                 result = ESIResponse(headers=response.headers)
         else:
