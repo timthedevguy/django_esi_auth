@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from time import sleep
@@ -9,6 +10,8 @@ from requests.structures import CaseInsensitiveDict
 
 from .exceptions import ESIRequestError, ESIResponseDecodeError
 from .models import Token
+
+logger = logging.getLogger(__name__)
 
 
 class ESIResponse:
@@ -110,6 +113,7 @@ class ESIClient:
             contract_id=contract_id,
             success_code=200,
             etag=etag,
+            allow_401=True,
         )
 
     def get_character_transactions(self, character_id: int, etag=None, **kwargs) -> ESIResponse:
@@ -192,7 +196,7 @@ class ESIClient:
         url = f"{self.base_url}{str.format(endpoint, **kwargs)}"
 
         request = requests.Request(method, url, headers=headers, params=params, data=data)
-        result = self._send_request(request)
+        result = self._send_request(request, kwargs.get("allow_401", False))
 
         if "all" in kwargs:
             next_page = result
@@ -203,7 +207,7 @@ class ESIClient:
 
         return result
 
-    def _send_request(self, request: requests.Request) -> ESIResponse:
+    def _send_request(self, request: requests.Request, allow_401: bool = False) -> ESIResponse:
         session = requests.Session()
 
         retries = 0
@@ -222,6 +226,11 @@ class ESIClient:
                 sleep(60)
                 retries += 1
             except requests.exceptions.HTTPError:
+                if response.status_code == 401:
+                    logger.error(f"Unauthorized response for {request.url}")
+                    if allow_401:
+                        logger.info("401 Unauthorized ignored")
+                        return ESIResponse(headers=response.headers)
                 sleep(60)
                 retries += 1
         else:
