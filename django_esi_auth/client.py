@@ -83,13 +83,13 @@ class ESIClient:
 
     def get_character_contracts(self, character_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
-            "GET", "/v1/characters/{character_id}/contracts/", character_id=character_id, success_code=200, etag=etag
+            "GET", "/characters/{character_id}/contracts/", character_id=character_id, success_code=200, etag=etag
         )
 
     def get_corporation_contracts(self, corporation_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
             "GET",
-            "/v1/corporations/{corporation_id}/contracts/",
+            "/corporations/{corporation_id}/contracts/",
             corporation_id=corporation_id,
             success_code=200,
             etag=etag,
@@ -108,7 +108,7 @@ class ESIClient:
     def get_character_contract_items(self, character_id: int, contract_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
             "GET",
-            "/v1/characters/{character_id}/contracts/{contract_id}/items/",
+            "/characters/{character_id}/contracts/{contract_id}/items/",
             character_id=character_id,
             contract_id=contract_id,
             success_code=200,
@@ -119,7 +119,7 @@ class ESIClient:
     def get_character_transactions(self, character_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
             "GET",
-            "/v1/characters/{character_id}/wallet/transactions/",
+            "/characters/{character_id}/wallet/transactions/",
             character_id=character_id,
             etag=etag,
             success_code=200,
@@ -128,7 +128,7 @@ class ESIClient:
     def get_character_journal(self, character_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
             "GET",
-            "/v6/characters/{character_id}/wallet/journal/",
+            "/characters/{character_id}/wallet/journal/",
             character_id=character_id,
             etag=etag,
             success_code=200,
@@ -137,7 +137,7 @@ class ESIClient:
     def get_structure(self, structure_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
             "GET",
-            "/v2/universe/structures/{structure_id}/",
+            "/universe/structures/{structure_id}/",
             structure_id=structure_id,
             etag=etag,
             success_code=200,
@@ -145,7 +145,7 @@ class ESIClient:
         )
 
     def get_names(self, ids: List[int], etag=None, **kwargs) -> ESIResponse:
-        return self._get_response("POST", "/v3/universe/names/", data=ids, success_code=200, public=True, no_page=True)
+        return self._get_response("POST", "/universe/names/", data=ids, success_code=200, public=True, no_page=True)
 
     def get_public_character_data(self, character_id: int, etag=None, **kwargs) -> ESIResponse:
         return self._get_response(
