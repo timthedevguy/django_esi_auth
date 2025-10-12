@@ -103,6 +103,7 @@ class ESIClient:
             contract_id=contract_id,
             success_code=200,
             etag=etag,
+            allow_401=True,
         )
 
     def get_character_contract_items(self, character_id: int, contract_id: int, etag=None, **kwargs) -> ESIResponse:
