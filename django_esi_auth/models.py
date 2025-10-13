@@ -71,11 +71,12 @@ class EveEntityManager(models.Manager):
     def update_unknowns(self, tokens: List["Token"]) -> List["EveEntity"]:
         results = []
         unknown_searchable_ids = self.get_unknown_searchable_ids()
-        if unknown_searchable_ids:
-            public_client = getattr(import_module("django_esi_auth.client"), "ESIClient")()
-            response = public_client.get_names(unknown_searchable_ids)
-            results.extend(self.update_entities_from_esi(response.data))
 
+        public_client = getattr(import_module("django_esi_auth.client"), "ESIClient")()
+        for i in range(0, len(unknown_searchable_ids), 999):
+            batch = unknown_searchable_ids[i : i + 999]
+            response = public_client.get_names(batch)
+            results.extend(self.update_entities_from_esi(response.data))
         found = []
         if tokens:
             for token in tokens:
@@ -85,10 +86,9 @@ class EveEntityManager(models.Manager):
                     for structure_id in structure_ids:
                         if structure_id not in found:
                             response = client.get_structure(structure_id=structure_id)
-                            if response.data:
+                            if not response.err and response.data:
                                 results.append(self.update_entity_name(structure_id, response.data["name"]))
                                 found.append(structure_id)
-
         return results
 
 

@@ -6,7 +6,6 @@ from time import sleep
 from typing import Any, List, Union
 
 import requests
-from requests.structures import CaseInsensitiveDict
 
 from .exceptions import ESIRequestError, ESIResponseDecodeError
 from .models import Token
@@ -17,20 +16,35 @@ logger = logging.getLogger(__name__)
 class ESIResponse:
     """Response class for ESI API calls"""
 
-    def __init__(
-        self, headers: CaseInsensitiveDict[str], next_page: requests.Request = None, page: int = 1, all: bool = False
-    ):
-        self._page = page
-        self._next_page = next_page
-        self._total_pages = int(headers["x-pages"]) if "x-pages" in headers else 1
-
-        if all:
-            self._total_pages = 1
-
-        self._etag = headers["ETag"].strip('"') if "ETag" in headers else None
-        self._expires = parsedate_to_datetime(headers["expires"]) if "expires" in headers else None
-        self._last_modified = parsedate_to_datetime(headers["last-modified"]) if "last-modified" in headers else None
+    def __init__(self, response: requests.Response, request: requests.Request = None):
+        self._request = request
+        self._response = response
+        self._err = None
+        self._page = request.params.get("page", 1) or 1
+        self._total_pages = int(response.headers.get("x-pages", 1))
+        self._next_page = None
+        self._etag = response.headers["ETag"].strip('"') if "ETag" in response.headers else None
+        self._expires = parsedate_to_datetime(response.headers["expires"]) if "expires" in response.headers else None
+        self._last_modified = (
+            parsedate_to_datetime(response.headers["last-modified"]) if "last-modified" in response.headers else None
+        )
         self._data = []
+
+        if 200 <= response.status_code <= 299:
+            # Set next page if we have one
+            if self._page + 1 <= self._total_pages:
+                request.params["page"] = self._page + 1
+                self._next_page = request
+            try:
+                self._data = response.json()
+            except json.decoder.JSONDecodeError as e:
+                raise ESIResponseDecodeError(f"Failed to decode response from ESI.\n{response.text}\n\n{e}")
+
+        elif response.status_code == 304:
+            # No new Data
+            self._total_pages = 1
+        else:
+            self._err = f"{response.status_code} :: {response.text}"
 
     @property
     def page(self) -> int:
@@ -56,13 +70,21 @@ class ESIResponse:
     def data(self) -> List[Any]:
         return self._data
 
-    @data.setter
-    def data(self, value: List[Any]):
-        self._data = value
-
     @property
     def next_page(self) -> requests.Request:
         return self._next_page
+
+    @property
+    def err(self) -> str:
+        return self._err
+
+    @property
+    def request(self) -> requests.Request:
+        return self._request
+
+    @property
+    def response(self) -> requests.Response:
+        return self._response
 
 
 class ESIClient:
@@ -231,16 +253,21 @@ class ESIClient:
                     logger.error(f"Unauthorized response for {request.url}")
                     if allow_401:
                         logger.info("401 Unauthorized ignored")
-                        return ESIResponse(headers=response.headers)
+                        return ESIResponse(response, request)
+                if response.status_code == 403:
+                    return ESIResponse(response, request)
                 sleep(60)
                 retries += 1
         else:
             raise ESIRequestError(f"Max retries exceeded for {request.url}")
 
+        return ESIResponse(response, request)
+
         if "page" in request.params:
             if request.params["page"] < int(response.headers.get("x-pages", 1)):
+                current_page = request.params["page"]
                 request.params["page"] += 1
-                result = ESIResponse(headers=response.headers, next_page=request, page=request.params["page"])
+                result = ESIResponse(headers=response.headers, next_page=request, page=current_page)
             else:
                 result = ESIResponse(headers=response.headers)
         else:
