@@ -4,6 +4,7 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 from time import sleep
 from typing import Any, List, Union
+from urllib.parse import parse_qs
 
 import requests
 
@@ -239,6 +240,14 @@ class ESIClient:
                 response = session.send(request.prepare(), timeout=(6, 10))
 
                 response.raise_for_status()
+                params = parse_qs(response.url.split("?")[1])
+                key = response.url.split("?")[0].split("/")[-2]
+
+                with open(f"results_{key}_{params['page'][0]}.txt", "w") as file:
+                    try:
+                        file.write(json.dumps(response.json(), indent=4))
+                    except json.decoder.JSONDecodeError:
+                        file.write(response.text)
 
                 if 200 <= response.status_code <= 299 or response.status_code == 304:
                     break
